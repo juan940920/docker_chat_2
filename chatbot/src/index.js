@@ -1,63 +1,25 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require("baileys");
-const qrcode = require("qrcode");
-const express = require("express");
-const { getContacto, crearContacto, obtenerProductos, crearVenta, descargarPDFVentaEnMemoria } = require('./api.js');
-
-const app = express();
-const port = 3001;
-
-let qrBase64 = "";
-const estadosUsuario = {}; // Guardar estados temporales si quieres
-const userContext = {};    // Guarda contexto por usuario (menús, etc)
-const productosUsuario = {};    // Lista de productos que ve el usuario
-const carritoUsuario = {};      // Lista de compras por usuario
-const contactoIds = {};          // Almacena el contacto_id  por usuario
-
-app.get("/qr", (req, res) => {
-    if (qrBase64) {
-        res.send(`
-            <html>
-                <body>
-                    <h2>Escanea el código QR para iniciar sesión en WhatsApp:</h2>
-                    <img src="${qrBase64}" />
-                </body>
-            </html>
-        `);
-    } else {
-        res.send("⏳ QR aún no generado. Intenta en unos segundos.");
-    }
-});
-
-app.listen(port, () => {
-    console.log(`🌐 Servidor QR iniciado en http://localhost:${port}/qr`);
-});
 
 async function connectToWhatsApp () {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-    const sock = makeWASocket({ auth: state, printQRInTerminal: false });
-
-    sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update;
-
-        if (qr) {
-            try {
-                qrBase64 = await qrcode.toDataURL(qr);
-                console.log(`✅ QR generado. Ve a http://localhost:${port}/qr`);
-            } catch (err) {
-                console.error("❌ Error generando QR:", err);
-            }
-        }
-
-        if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('Conexion cerrada ', lastDisconnect.error, ', reconectando ', shouldReconnect);
-            if (shouldReconnect) connectToWhatsApp();
-        } else if (connection === 'open') {
-            console.log('✅ CONEXIÓN ABIERTA!!');
-        }
-    });
+    const sock = makeWASocket({ auth: state, printQRInTerminal: true });
 
     sock.ev.on('creds.update', saveCreds);
+
+    // evento de conexion
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect, qr } = update;
+        console.log(qr);
+
+        if(connection === 'close'){
+            const puedeConectar = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            if(puedeConectar){
+                connectToWhatsApp ()
+            }
+        }else if(connection == 'open'){
+            console.log("CONEXION ABIERTA!!!");
+        }
+    });
 
     sock.ev.on('messages.upsert', async event => {
     for (const m of event.messages) {
