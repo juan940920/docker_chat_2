@@ -1,4 +1,14 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require("baileys");
+const { getContacto, crearContacto, obtenerProductos, crearVenta, descargarPDFVentaEnMemoria } = require('./api.js');
+const express = require("express");
+
+const app = express();
+
+const estadosUsuario = {}; // Guardar estados temporales si quieres
+const userContext = {};    // Guarda contexto por usuario (menús, etc)
+const productosUsuario = {};    // Lista de productos que ve el usuario
+const carritoUsuario = {};      // Lista de compras por usuario
+const contactoIds = {};          // Almacena el contacto_id  por usuario
 
 async function connectToWhatsApp () {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
